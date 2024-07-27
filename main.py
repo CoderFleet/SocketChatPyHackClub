@@ -1,6 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTextEdit, QLineEdit, QPushButton, QLabel, QHBoxLayout
 from PyQt5.QtCore import Qt
+import socketio
 
 class ChatWindow(QMainWindow):
     def __init__(self):
@@ -36,10 +37,31 @@ class ChatWindow(QMainWindow):
 
         self.send_button.clicked.connect(self.send_message)
 
+        self.sio = socketio.Client()
+        self.sio.on('connect', self.on_connect)
+        self.sio.on('disconnect', self.on_disconnect)
+        self.sio.on('message', self.on_message)
+        self.sio.connect('http://localhost:5000')
+
     def send_message(self):
         message = self.input_area.text()
-        self.chat_area.append(f'You: {message}')
-        self.input_area.clear()
+        if message:
+            self.sio.emit('message', {'username': self.username_input.text(), 'message': message})
+            self.chat_area.append(f'You: {message}')
+            self.input_area.clear()
+
+    def on_connect(self):
+        self.chat_area.append('Connected to server')
+
+    def on_disconnect(self):
+        self.chat_area.append('Disconnected from server')
+
+    def on_message(self, data):
+        self.chat_area.append(f'{data["username"]}: {data["message"]}')
+
+    def closeEvent(self, event):
+        self.sio.disconnect()
+        event.accept()
 
 app = QApplication(sys.argv)
 window = ChatWindow()
