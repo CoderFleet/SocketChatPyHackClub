@@ -2,7 +2,7 @@ import socketio
 import uvicorn
 
 sio = socketio.AsyncServer()
-app = socketio.ASGIApp(sio, static_files={'/': './public/'})
+app = socketio.ASGIApp(sio)
 
 connected_clients = set()
 

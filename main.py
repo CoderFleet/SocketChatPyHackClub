@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTextEdit, QLineEdit, QPushButton, QLabel, QHBoxLayout, QAction
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTextEdit, QLineEdit, QPushButton, QLabel, QHBoxLayout
 from PyQt5.QtCore import Qt, QDateTime
 import socketio
 
@@ -50,6 +50,8 @@ class ChatWindow(QMainWindow):
         self.typing_label = QLabel('', self)
         layout.addWidget(self.typing_label)
 
+        self.connected = False
+
     def connect_to_server(self):
         try:
             self.sio.connect('http://localhost:5000')
@@ -57,18 +59,21 @@ class ChatWindow(QMainWindow):
             self.chat_area.append('<i>Connection failed. Please check the server and try again.</i>')
 
     def send_message(self):
-        message = self.input_area.text()
-        if message:
-            timestamp = QDateTime.currentDateTime().toString('yyyy-MM-dd hh:mm:ss')
-            self.sio.emit('message', {'username': self.username_input.text(), 'message': message, 'timestamp': timestamp})
-            self.chat_area.append(f'<b>You</b> [{timestamp}]: {message}')
-            self.input_area.clear()
+        if self.connected:
+            message = self.input_area.text()
+            if message:
+                timestamp = QDateTime.currentDateTime().toString('yyyy-MM-dd hh:mm:ss')
+                self.sio.emit('message', {'username': self.username_input.text(), 'message': message, 'timestamp': timestamp})
+                self.chat_area.append(f'<b>You</b> [{timestamp}]: {message}')
+                self.input_area.clear()
 
     def on_connect(self):
         self.chat_area.append('<i>Connected to server</i>')
+        self.connected = True
 
     def on_disconnect(self):
         self.chat_area.append('<i>Disconnected from server</i>')
+        self.connected = False
 
     def on_message(self, data):
         color = 'blue' if data['username'] == self.username_input.text() else 'green'
@@ -84,10 +89,12 @@ class ChatWindow(QMainWindow):
         self.typing_label.setText(f'{data["username"]} is typing...')
 
     def notify_typing(self):
-        self.sio.emit('typing', {'username': self.username_input.text()})
+        if self.connected:
+            self.sio.emit('typing', {'username': self.username_input.text()})
 
     def closeEvent(self, event):
-        self.sio.disconnect()
+        if self.connected:
+            self.sio.disconnect()
         event.accept()
 
 app = QApplication(sys.argv)
